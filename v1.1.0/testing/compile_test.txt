@@ -1,0 +1,1 @@
+g++ -o final_test final_test.cpp -I../include/ -L../lib -lbrotlicommon.1.1.0 -lbrotlidec.1.1.0 -lbrotlienc.1.1.0

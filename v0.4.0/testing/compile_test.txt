@@ -1,0 +1,4 @@
+g++ -o final_test final_test.cpp -I../enc \
+-I../dec \
+../enc/*.o \
+../dec/*.o
