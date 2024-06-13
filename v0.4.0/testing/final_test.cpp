@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <mach/mach.h>
 #include <sys/stat.h>
+#include <cstring>
 
 const size_t BUFFER_SIZE = 16384; // 16kB
 
@@ -99,6 +100,8 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
 
     // Read input file and compress data
     uint8_t buffer[BUFFER_SIZE];
+    memset(buffer, 0, BUFFER_SIZE);
+
     while (!in.eof()) {
         in.read(reinterpret_cast<char*>(buffer), BUFFER_SIZE);
         if (in.bad()) {
@@ -154,6 +157,7 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
 
     // Define buffer
     uint8_t buffer[BUFFER_SIZE];
+    memset(buffer, 0, BUFFER_SIZE);
 
     // Initialize Brotli state
     BrotliState* state = BrotliCreateState(nullptr, nullptr, nullptr);

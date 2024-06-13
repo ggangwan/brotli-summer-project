@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <mach/mach.h>
 #include <sys/stat.h>
+#include <cstring>
 
 const size_t BUFFER_SIZE = 16384; // 16kB
 
@@ -102,6 +103,7 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
     BrotliEncoderSetParameter(encoder_state, BROTLI_PARAM_LGWIN, lgwin);
 
     uint8_t buffer[BUFFER_SIZE];
+    memset(buffer, 0, BUFFER_SIZE);
     bool is_eof = false;
 
     while (!is_eof) {
@@ -150,6 +152,7 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
 
     // Define buffer
     uint8_t buffer[BUFFER_SIZE];
+    memset(buffer, 0, BUFFER_SIZE);
 
     // Initialize Brotli decoder state
     BrotliDecoderState* state = BrotliDecoderCreateInstance(nullptr, nullptr, nullptr);
