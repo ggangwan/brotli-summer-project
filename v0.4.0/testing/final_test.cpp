@@ -283,7 +283,7 @@ int main() {
         return 1;
     }
 
-    // Record time and resources post-compression
+    // Record time and resources post-decompression
     gettimeofday(&postTime, nullptr);
     CpuUsage postProcUsage = getCpuUsage();
     SystemCpuUsage postSysUsage = getSystemCpuUsage();
