@@ -100,9 +100,9 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
 
     // Read input file and compress data
     uint8_t input_buffer[BUFFER_SIZE];
-    uint8_t output_buffer[BUFFER_SIZE];
     memset(input_buffer, 0, BUFFER_SIZE);
-    memset(output_buffer, 0, BUFFER_SIZE);
+    size_t output_size = 0;
+    uint8_t* output_ptr = nullptr;
 
     while (!in.eof()) {
         in.read(reinterpret_cast<char*>(input_buffer), BUFFER_SIZE);
@@ -115,30 +115,28 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
             break;
         }
 
-        size_t encoded_size = BUFFER_SIZE;
-        if (!compressor.WriteMetaBlock(input_size, input_buffer, false, &encoded_size, output_buffer)) {
+        // Copy the input data to the ring buffer
+        compressor.CopyInputToRingBuffer(input_size, input_buffer);
+
+        output_size = 0;
+        output_ptr = nullptr;
+        if (!compressor.WriteBrotliData(in.eof(), true, &output_size, &output_ptr) ||
+            output_size > BUFFER_SIZE) {
             std::cerr << "Error compressing data" << std::endl;
             return false;
         }
 
-        out.write(reinterpret_cast<char*>(output_buffer), encoded_size);
-        if (out.bad()) {
-            std::cerr << "Error writing output file: " << output_file << std::endl;
-            return false;
+        if (output_size > 0) {
+            out.write(reinterpret_cast<char*>(output_ptr), output_size);
+            if (out.bad()) {
+                std::cerr << "Error writing output file: " << output_file << std::endl;
+                return false;
+            }
         }
-    }
 
-    // Finish compression
-    size_t encoded_size = BUFFER_SIZE;
-    if (!compressor.FinishStream(&encoded_size, output_buffer)) {
-        std::cerr << "Error finishing compression" << std::endl;
-        return false;
-    }
-
-    out.write(reinterpret_cast<char*>(output_buffer), encoded_size);
-    if (out.bad()) {
-        std::cerr << "Error writing output file: " << output_file << std::endl;
-        return false;
+        if (output_size == 0) {
+            break;
+        }
     }
 
     return true;
@@ -273,7 +271,7 @@ int main() {
     SystemCpuUsage preSysUsage = getSystemCpuUsage();
 
     // Compress data
-    if (CompressData(input_file, compressed_file, 6, 16)) {
+    if (CompressData(input_file, compressed_file, 6, 16)) { /* pairs that dont work yet: (1, 10-13)*/
         std::cout << "Compression successful\n";
     } else {
         std::cerr << "Compression failed\n";
