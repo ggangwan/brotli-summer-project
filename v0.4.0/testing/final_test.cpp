@@ -99,11 +99,13 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
     brotli::BrotliCompressor compressor(params);
 
     // Read input file and compress data
-    uint8_t buffer[BUFFER_SIZE];
-    memset(buffer, 0, BUFFER_SIZE);
+    uint8_t input_buffer[BUFFER_SIZE];
+    uint8_t output_buffer[BUFFER_SIZE];
+    memset(input_buffer, 0, BUFFER_SIZE);
+    memset(output_buffer, 0, BUFFER_SIZE);
 
     while (!in.eof()) {
-        in.read(reinterpret_cast<char*>(buffer), BUFFER_SIZE);
+        in.read(reinterpret_cast<char*>(input_buffer), BUFFER_SIZE);
         if (in.bad()) {
             std::cerr << "Error reading input file: " << input_file << std::endl;
             return false;
@@ -114,12 +116,12 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
         }
 
         size_t encoded_size = BUFFER_SIZE;
-        if (!compressor.WriteMetaBlock(input_size, buffer, false, &encoded_size, buffer)) {
+        if (!compressor.WriteMetaBlock(input_size, input_buffer, false, &encoded_size, output_buffer)) {
             std::cerr << "Error compressing data" << std::endl;
             return false;
         }
 
-        out.write(reinterpret_cast<char*>(buffer), encoded_size);
+        out.write(reinterpret_cast<char*>(output_buffer), encoded_size);
         if (out.bad()) {
             std::cerr << "Error writing output file: " << output_file << std::endl;
             return false;
@@ -128,12 +130,12 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
 
     // Finish compression
     size_t encoded_size = BUFFER_SIZE;
-    if (!compressor.FinishStream(&encoded_size, buffer)) {
+    if (!compressor.FinishStream(&encoded_size, output_buffer)) {
         std::cerr << "Error finishing compression" << std::endl;
         return false;
     }
 
-    out.write(reinterpret_cast<char*>(buffer), encoded_size);
+    out.write(reinterpret_cast<char*>(output_buffer), encoded_size);
     if (out.bad()) {
         std::cerr << "Error writing output file: " << output_file << std::endl;
         return false;
@@ -156,8 +158,10 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
     }
 
     // Define buffer
-    uint8_t buffer[BUFFER_SIZE];
-    memset(buffer, 0, BUFFER_SIZE);
+    uint8_t input_buffer[BUFFER_SIZE];
+    uint8_t output_buffer[BUFFER_SIZE];
+    memset(input_buffer, 0, BUFFER_SIZE);
+    memset(output_buffer, 0, BUFFER_SIZE);
 
     // Initialize Brotli state
     BrotliState* state = BrotliCreateState(nullptr, nullptr, nullptr);
@@ -171,15 +175,15 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
 
     while (true) {
         // Read input data into buffer
-        in.read(reinterpret_cast<char*>(buffer), BUFFER_SIZE);
+        in.read(reinterpret_cast<char*>(input_buffer), BUFFER_SIZE);
         size_t available_in = in.gcount();
         if (available_in == 0 && in.eof()) {
             break; // End of input file
         }
 
-        const uint8_t* next_in = buffer;
+        const uint8_t* next_in = input_buffer;
         available_out = BUFFER_SIZE;
-        uint8_t* next_out = buffer;
+        uint8_t* next_out = output_buffer;
 
         while (true) {
             // Decompress data
@@ -187,7 +191,7 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
             switch (result) {
                 case BROTLI_RESULT_SUCCESS:
                     // Write the remaining decompressed data to the output file
-                    out.write(reinterpret_cast<char*>(buffer), BUFFER_SIZE - available_out);
+                    out.write(reinterpret_cast<char*>(output_buffer), BUFFER_SIZE - available_out);
                     if (!out) {
                         std::cerr << "Error writing to output file\n";
                         BrotliDestroyState(state);
@@ -198,7 +202,7 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
 
                 case BROTLI_RESULT_NEEDS_MORE_INPUT:
                     // Write the partially decompressed data to the output file
-                    out.write(reinterpret_cast<char*>(buffer), BUFFER_SIZE - available_out);
+                    out.write(reinterpret_cast<char*>(output_buffer), BUFFER_SIZE - available_out);
                     if (!out) {
                         std::cerr << "Error writing to output file\n";
                         BrotliDestroyState(state);
@@ -209,7 +213,7 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
 
                 case BROTLI_RESULT_NEEDS_MORE_OUTPUT:
                     // Write the decompressed data to the output file
-                    out.write(reinterpret_cast<char*>(buffer), BUFFER_SIZE - available_out);
+                    out.write(reinterpret_cast<char*>(output_buffer), BUFFER_SIZE - available_out);
                     if (!out) {
                         std::cerr << "Error writing to output file\n";
                         BrotliDestroyState(state);
@@ -217,7 +221,7 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
                     }
                     // Reset the output buffer
                     available_out = BUFFER_SIZE;
-                    next_out = buffer;
+                    next_out = output_buffer;
                     break;
 
                 default:
@@ -235,7 +239,7 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
     // Write any remaining decompressed data to the output file
     size_t output_size = BUFFER_SIZE - available_out;
     if (output_size > 0) {
-        out.write(reinterpret_cast<char*>(buffer), output_size);
+        out.write(reinterpret_cast<char*>(output_buffer), output_size);
         if (!out) {
             std::cerr << "Error writing to output file\n";
             BrotliDestroyState(state);
