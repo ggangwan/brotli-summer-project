@@ -9,6 +9,7 @@ brotli-git-setup/
 ├── v0.4.0/
 │   ├── dec/
 │   ├── enc/
+│   ├── shared.mk
 │   └── testing/
 │       ├── final_test.cpp
 │       └── Makefile
