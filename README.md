@@ -49,7 +49,7 @@ To build the compression and decompression script for version 0.4.0:
 
 4. Run the executable:
    ```sh
-   ./final_test -f xyz.html -c 6 -w 16 -m compress
+   ./final_test -f path/to/xyz.html -c 6 -w 16 -m compress
    ```
 
 ### Version 1.1.0
@@ -78,7 +78,7 @@ To build the compression and decompression script for version 1.1.0:
 
 4. Run the executable:
    ```sh
-   ./final_test -f xyz.html.br -c 6 -w 16 -m decompress
+   ./final_test -f path/to/xyz.html.br -c 6 -w 16 -m decompress
    ```
 
 ## Usage
