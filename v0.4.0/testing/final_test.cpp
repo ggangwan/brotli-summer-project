@@ -120,8 +120,7 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
 
         output_size = 0;
         output_ptr = nullptr;
-        if (!compressor.WriteBrotliData(in.eof(), true, &output_size, &output_ptr) ||
-            output_size > BUFFER_SIZE) {
+        if (!compressor.WriteBrotliData(in.eof(), true, &output_size, &output_ptr)) {
             std::cerr << "Error compressing data" << std::endl;
             return false;
         }
@@ -271,7 +270,7 @@ int main() {
     SystemCpuUsage preSysUsage = getSystemCpuUsage();
 
     // Compress data
-    if (CompressData(input_file, compressed_file, 6, 16)) { /* pairs that dont work yet: (1, 10-13)*/
+    if (CompressData(input_file, compressed_file, 11, 24)) { /* pairs that dont work yet: (1, 10-13)*/
         std::cout << "Compression successful\n";
     } else {
         std::cerr << "Compression failed\n";
