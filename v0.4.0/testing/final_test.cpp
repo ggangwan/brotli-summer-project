@@ -8,6 +8,7 @@
 #include <mach/mach.h>
 #include <sys/stat.h>
 #include <cstring>
+#include <libgen.h>
 
 const size_t BUFFER_SIZE = 16384; // 16kB
 
@@ -254,73 +255,173 @@ size_t GetFileSize(const std::string& filename) {
     int rc = stat(filename.c_str(), &stat_buf);
     return rc == 0 ? stat_buf.st_size : -1;
 }
+void PrintUsage() {
+    std::cout << "Usage: program_name -f <file_path> -c <compression_quality> -w <window_bits> -m <mode>\n"
+              << "  -f <file_path>              : Path to the input file\n"
+              << "  -c <compression_quality>    : Compression quality (1 to 11)\n"
+              << "  -w <window_bits>            : Number of window bits (10 to 24)\n"
+              << "  -m <mode>                   : Mode ('compress', 'decompress', 'both')\n";
+}
 
-int main() {
-    std::string input_file = "sample.txt";
-    std::string compressed_file = "compressed.br";
-    std::string decompressed_file = "decompressed.txt";
+int main(int argc, char* argv[]) {
+    std::string file_path;
+    int compression_quality = 6;
+    int window_bits = 16;
+    std::string mode = "both";
 
-    std::cout<<input_file<<" -> " << compressed_file << " -> " << decompressed_file << std::endl;
+    int opt;
+    while ((opt = getopt(argc, argv, "f:c:w:m:")) != -1) {
+        switch (opt) {
+            case 'f':
+                file_path = optarg;
+                break;
+            case 'c':
+                compression_quality = std::stoi(optarg);
+                break;
+            case 'w':
+                window_bits = std::stoi(optarg);
+                break;
+            case 'm':
+                mode = optarg;
+                break;
+            default:
+                PrintUsage();
+                return 1;
+        }
+    }
+
+    if (file_path.empty() || (mode != "compress" && mode != "decompress" && mode != "both")) {
+        PrintUsage();
+        return 1;
+    }
+
+    // Extract the directory and base name of the file for constructing output file paths
+    char* file_path_cstr = new char[file_path.length() + 1];
+    std::strcpy(file_path_cstr, file_path.c_str());
+    std::string dir_name = dirname(file_path_cstr);
+    std::string base_name = basename(file_path_cstr);
+    delete[] file_path_cstr;
+
+    std::string compressed_file;
+    std::string decompressed_file;
+
+    if (mode == "compress" || mode == "both") {
+        compressed_file = dir_name + "/" + base_name + ".br";
+    }
+
+    if (mode == "decompress" || mode == "both") {
+        if (mode == "decompress") {
+            compressed_file = file_path;
+            if (base_name.size() >= 3 && base_name.substr(base_name.size() - 3) == ".br") {
+                decompressed_file = dir_name + "/d-" + base_name.substr(0, base_name.size() - 3);
+            } else {
+                std::cerr << "Invalid file extension for decompression mode.\n";
+                return 1;
+            }
+        } else {
+            decompressed_file = dir_name + "/d-" + base_name;
+        }
+    }
+
+    // Display the path where the operation starts
+    std::cout << "Operation starts in directory: " << dir_name << std::endl;
+
+    // Print the filenames based on the mode
+    if (mode == "compress") {
+        std::cout << "Input file: " << file_path << " -> Compressed file: " << compressed_file << std::endl;
+    } else if (mode == "decompress") {
+        std::cout << "Input file: " << compressed_file << " -> Decompressed file: " << decompressed_file << std::endl;
+    } else if (mode == "both") {
+        std::cout << "Input file: " << file_path << " -> Compressed file: " << compressed_file << " -> Decompressed file: " << decompressed_file << std::endl;
+    }
 
     timeval preTime, midTime, postTime;
+    CpuUsage preProcUsage, midProcUsage, postProcUsage;
+    SystemCpuUsage preSysUsage, midSysUsage, postSysUsage;
+    double elapsedTimeCompression = 0.0, elapsedTimeDecompression = 0.0;
 
-    // Record time and resources pre-compression
-    gettimeofday(&preTime, nullptr);
-    CpuUsage preProcUsage = getCpuUsage();
-    SystemCpuUsage preSysUsage = getSystemCpuUsage();
+    if (mode == "compress" || mode == "both") {
+        gettimeofday(&preTime, nullptr);
+        preProcUsage = getCpuUsage();
+        preSysUsage = getSystemCpuUsage();
 
-    // Compress data
-    if (CompressData(input_file, compressed_file, 11, 24)) { /* pairs that dont work yet: (1, 10-13)*/
-        std::cout << "Compression successful\n";
-    } else {
-        std::cerr << "Compression failed\n";
-        return 1;
+        if (CompressData(file_path, compressed_file, compression_quality, window_bits)) {
+            std::cout << "Compression successful\n";
+        } else {
+            std::cerr << "Compression failed\n";
+            return 1;
+        }
+
+        gettimeofday(&midTime, nullptr);
+        midProcUsage = getCpuUsage();
+        midSysUsage = getSystemCpuUsage();
+
+        elapsedTimeCompression = (midTime.tv_sec - preTime.tv_sec) + (midTime.tv_usec - preTime.tv_usec) / 1e6;
     }
 
-    // Record time after compression, before decompression
-    gettimeofday(&midTime, nullptr);
+    if (mode == "decompress" || mode == "both") {
+        if (mode == "decompress") {
+            gettimeofday(&preTime, nullptr);
+            preProcUsage = getCpuUsage();
+            preSysUsage = getSystemCpuUsage();
+        }
 
-    // Decompress data
-    if (DecompressData(compressed_file, decompressed_file)) {
-        std::cout << "Decompression successful\n";
-    } else {
-        std::cerr << "Decompression failed\n";
-        return 1;
+        if (DecompressData(compressed_file, decompressed_file)) {
+            std::cout << "Decompression successful\n";
+        } else {
+            std::cerr << "Decompression failed\n";
+            return 1;
+        }
+
+        gettimeofday(&postTime, nullptr);
+        postProcUsage = getCpuUsage();
+        postSysUsage = getSystemCpuUsage();
+
+        if (mode == "both") {
+            elapsedTimeDecompression = (postTime.tv_sec - midTime.tv_sec) + (postTime.tv_usec - midTime.tv_usec) / 1e6;
+        } else {
+            elapsedTimeDecompression = (postTime.tv_sec - preTime.tv_sec) + (postTime.tv_usec - preTime.tv_usec) / 1e6;
+        }
     }
 
-    // Record time and resources post-decompression
-    gettimeofday(&postTime, nullptr);
-    CpuUsage postProcUsage = getCpuUsage();
-    SystemCpuUsage postSysUsage = getSystemCpuUsage();
-
-    // Performance metrics
-    double elapsedTimeCompression = (midTime.tv_sec - preTime.tv_sec) 
-                       + (midTime.tv_usec - preTime.tv_usec) / 1e6;
-    double elapsedTimeDecompression = (postTime.tv_sec - midTime.tv_sec) 
-                       + (postTime.tv_usec - midTime.tv_usec) / 1e6;
     double elapsedTimeTotal = elapsedTimeCompression + elapsedTimeDecompression;
 
-    std::cout << "Time taken by compression: " << elapsedTimeCompression << "s"<< std::endl
-              << "Time taken by decompression: " << elapsedTimeDecompression << "s"<< std::endl
-              << "Total time taken: " << elapsedTimeTotal << "s"<< std::endl;
+    if (mode == "compress" || mode == "both") {
+        std::cout << "Time taken by compression: " << elapsedTimeCompression << "s\n";
+    }
 
-    double sysCpuUsage = calculateOverallCpuUsage(preSysUsage, postSysUsage);
-    double procCpuUsage = calculateCpuUsage(preProcUsage, postProcUsage, elapsedTimeTotal);
+    if (mode == "decompress" || mode == "both") {
+        std::cout << "Time taken by decompression: " << elapsedTimeDecompression << "s\n";
+    }
 
-    std::cout << "CPU usage by process: " << procCpuUsage << "%" << std::endl;
-    std::cout << "Overall CPU usage: " << sysCpuUsage << "%" << std::endl;
+    if (mode == "both") {
+        std::cout << "Total time taken: " << elapsedTimeTotal << "s\n";
+    }
+
+    if (mode == "compress") {
+        double sysCpuUsage = calculateOverallCpuUsage(preSysUsage, midSysUsage);
+        double procCpuUsage = calculateCpuUsage(preProcUsage, midProcUsage, elapsedTimeCompression);
+        std::cout << "CPU usage by process: " << procCpuUsage << "%\n";
+        std::cout << "Overall CPU usage: " << sysCpuUsage << "%\n";
+    } else if (mode == "decompress") {
+        double sysCpuUsage = calculateOverallCpuUsage(preSysUsage, postSysUsage);
+        double procCpuUsage = calculateCpuUsage(preProcUsage, postProcUsage, elapsedTimeDecompression);
+        std::cout << "CPU usage by process: " << procCpuUsage << "%\n";
+        std::cout << "Overall CPU usage: " << sysCpuUsage << "%\n";
+    }
 
     printMaxRSS();
 
-    // Calculate and display compression ratio
-    size_t original_size = GetFileSize(input_file);
-    size_t compressed_size = GetFileSize(compressed_file);
-    
-    if (original_size != -1 && compressed_size != -1) {
-        double compression_ratio = static_cast<double>(original_size) / compressed_size;
-        std::cout << "Compression Ratio: " << compression_ratio << std::endl;
-    } else {
-        std::cerr << "Error calculating file sizes." << std::endl;
+    if (mode == "compress" || mode == "both") {
+        size_t original_size = GetFileSize(file_path);
+        size_t compressed_size = GetFileSize(compressed_file);
+
+        if (original_size != -1 && compressed_size != -1) {
+            double compression_ratio = static_cast<double>(original_size) / compressed_size;
+            std::cout << "Compression Ratio: " << compression_ratio << std::endl;
+        } else {
+            std::cerr << "Error calculating file sizes.\n";
+        }
     }
 
     return 0;
