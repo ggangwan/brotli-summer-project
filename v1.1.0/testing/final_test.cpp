@@ -117,7 +117,7 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
             const uint8_t* next_in = input_buffer;
             size_t available_in = static_cast<size_t>(bytes_read);
 
-            while (available_in > 0) {
+            do {
                 uint8_t* next_out = output_buffer;
                 size_t available_out = BUFFER_SIZE;
 
@@ -131,7 +131,7 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
 
                 size_t output_size = BUFFER_SIZE - available_out;
                 output_file.write(reinterpret_cast<char*>(output_buffer), output_size);
-            }
+            } while (available_in > 0 || BrotliEncoderHasMoreOutput(encoder_state));
         }
     }
 
