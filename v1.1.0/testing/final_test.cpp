@@ -406,9 +406,9 @@ int main(int argc, char* argv[]) {
         double procCpuUsage = calculateCpuUsage(preProcUsage, midProcUsage, elapsedTimeCompression);
         std::cout << "CPU usage by process: " << procCpuUsage << "%\n";
         std::cout << "Overall CPU usage: " << sysCpuUsage << "%\n";
-    } else if (mode == "decompress") {
+    } else {
         double sysCpuUsage = calculateOverallCpuUsage(preSysUsage, postSysUsage);
-        double procCpuUsage = calculateCpuUsage(preProcUsage, postProcUsage, elapsedTimeDecompression);
+        double procCpuUsage = calculateCpuUsage(preProcUsage, postProcUsage, elapsedTimeTotal);
         std::cout << "CPU usage by process: " << procCpuUsage << "%\n";
         std::cout << "Overall CPU usage: " << sysCpuUsage << "%\n";
     }
