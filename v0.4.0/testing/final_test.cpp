@@ -81,7 +81,7 @@ void printMaxRSS() {
     std::cout << "Maximum resident set size: " << usage.ru_maxrss << " kilobytes\n";
 }
 
-bool CompressData(const std::string& input_file, const std::string& output_file, int quality = 6, int lgwin = 16) {
+bool CompressData(const std::string& input_file, const std::string& output_file, int quality = 6, int lgwin = 16, double* timeTakenByCITRB = nullptr, double* timeTakenByWBD = nullptr) {
     std::ifstream in(input_file, std::ios::binary);
     if (!in.is_open()) {
         std::cerr << "Error opening input file: " << input_file << std::endl;
@@ -99,11 +99,14 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
     params.lgwin = lgwin;   
     brotli::BrotliCompressor compressor(params);
 
-    // Read input file and compress data
     uint8_t input_buffer[BUFFER_SIZE];
     memset(input_buffer, 0, BUFFER_SIZE);
     size_t output_size = 0;
     uint8_t* output_ptr = nullptr;
+
+    // Variables to hold the time taken by each function
+    double totalTimeCopyInputToRingBuffer = 0.0;
+    double totalTimeWriteBrotliData = 0.0;
 
     while (!in.eof()) {
         in.read(reinterpret_cast<char*>(input_buffer), BUFFER_SIZE);
@@ -116,15 +119,22 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
             break;
         }
 
-        // Copy the input data to the ring buffer
+        struct timeval startTime, endTime;
+        
+        // Measure time taken by CopyInputToRingBuffer
+        gettimeofday(&startTime, nullptr);
         compressor.CopyInputToRingBuffer(input_size, input_buffer);
+        gettimeofday(&endTime, nullptr);
+        totalTimeCopyInputToRingBuffer += (endTime.tv_sec - startTime.tv_sec) + (endTime.tv_usec - startTime.tv_usec) / 1e6;
 
-        output_size = 0;
-        output_ptr = nullptr;
-        if (!compressor.WriteBrotliData(in.eof(), true, &output_size, &output_ptr)) {
+        // Measure time taken by WriteBrotliData
+        gettimeofday(&startTime, nullptr);
+        if (!compressor.WriteBrotliData(in.eof(), true, &output_size, &output_ptr) || output_size > BUFFER_SIZE) {
             std::cerr << "Error compressing data" << std::endl;
             return false;
         }
+        gettimeofday(&endTime, nullptr);
+        totalTimeWriteBrotliData += (endTime.tv_sec - startTime.tv_sec) + (endTime.tv_usec - startTime.tv_usec) / 1e6;
 
         if (output_size > 0) {
             out.write(reinterpret_cast<char*>(output_ptr), output_size);
@@ -137,6 +147,14 @@ bool CompressData(const std::string& input_file, const std::string& output_file,
         if (output_size == 0) {
             break;
         }
+    }
+
+    // Update the pointers with the total time taken
+    if (timeTakenByCITRB) {
+        *timeTakenByCITRB = totalTimeCopyInputToRingBuffer;
+    }
+    if (timeTakenByWBD) {
+        *timeTakenByWBD = totalTimeWriteBrotliData;
     }
 
     return true;
@@ -324,7 +342,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Display the path where the operation starts
-    std::cout << "Operation starts in directory: " << dir_name << std::endl;
+    std::cout << "\nOperation starts in directory: " << dir_name << std::endl;
 
     // Print the filenames based on the mode
     if (mode == "compress") {
@@ -338,17 +356,20 @@ int main(int argc, char* argv[]) {
     timeval preTime, midTime, postTime;
     CpuUsage preProcUsage, midProcUsage, postProcUsage;
     SystemCpuUsage preSysUsage, midSysUsage, postSysUsage;
-    double elapsedTimeCompression = 0.0, elapsedTimeDecompression = 0.0;
+    double elapsedTimeCompression = 0.0, 
+           elapsedTimeCopyInputToRingBuffer = 0.0,
+           elapsedTimeWriteBrotliData = 0.0,
+           elapsedTimeDecompression = 0.0;
 
     if (mode == "compress" || mode == "both") {
         gettimeofday(&preTime, nullptr);
         preProcUsage = getCpuUsage();
         preSysUsage = getSystemCpuUsage();
 
-        if (CompressData(file_path, compressed_file, compression_quality, window_bits)) {
-            std::cout << "Compression successful\n";
+        if (CompressData(file_path, compressed_file, compression_quality, window_bits, &elapsedTimeCopyInputToRingBuffer, &elapsedTimeWriteBrotliData)) {
+            std::cout << "\nCompression successful\n";
         } else {
-            std::cerr << "Compression failed\n";
+            std::cerr << "\nCompression failed\n";
             return 1;
         }
 
@@ -386,17 +407,23 @@ int main(int argc, char* argv[]) {
 
     double elapsedTimeTotal = elapsedTimeCompression + elapsedTimeDecompression;
 
+    std::cout<<std::endl;
+
     if (mode == "compress" || mode == "both") {
-        std::cout << "Time taken by compression: " << elapsedTimeCompression << "s\n";
+        std::cout << "Time taken by CopyInputToRingBuffer: " << elapsedTimeCopyInputToRingBuffer << "s\n";
+        std::cout << "Time taken by WriteBrotliData: " << elapsedTimeWriteBrotliData << "s\n";
+        std::cout << "Time taken by Compression: " << elapsedTimeCompression << "s\n";
     }
 
     if (mode == "decompress" || mode == "both") {
-        std::cout << "Time taken by decompression: " << elapsedTimeDecompression << "s\n";
+        std::cout << "Time taken by Decompression: " << elapsedTimeDecompression << "s\n";
     }
 
     if (mode == "both") {
-        std::cout << "Total time taken: " << elapsedTimeTotal << "s\n";
+        std::cout << "Total time taken: " << elapsedTimeTotal << "s\n\n";
     }
+
+    std::cout<<std::endl;
 
     if (mode == "compress") {
         double sysCpuUsage = calculateOverallCpuUsage(preSysUsage, midSysUsage);
@@ -410,7 +437,9 @@ int main(int argc, char* argv[]) {
         std::cout << "Overall CPU usage: " << sysCpuUsage << "%\n";
     }
 
+    std::cout<<std::endl;
     printMaxRSS();
+    std::cout<<std::endl;
 
     if (mode == "compress" || mode == "both") {
         size_t original_size = GetFileSize(file_path);
