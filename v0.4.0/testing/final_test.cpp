@@ -341,16 +341,13 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Display the path where the operation starts
-    std::cout << "\nOperation starts in directory: " << dir_name << std::endl;
-
     // Print the filenames based on the mode
     if (mode == "compress") {
-        std::cout << "Input file: " << file_path << " -> Compressed file: " << compressed_file << std::endl;
+        std::cout << "Input file: " << file_path << "\n -> Compressed file: " << compressed_file << std::endl;
     } else if (mode == "decompress") {
-        std::cout << "Input file: " << compressed_file << " -> Decompressed file: " << decompressed_file << std::endl;
+        std::cout << "Input file: " << compressed_file << "\n -> Decompressed file: " << decompressed_file << std::endl;
     } else if (mode == "both") {
-        std::cout << "Input file: " << file_path << " -> Compressed file: " << compressed_file << " -> Decompressed file: " << decompressed_file << std::endl;
+        std::cout << "Input file: " << file_path << "\n -> Compressed file: " << compressed_file << "\n -> Decompressed file: " << decompressed_file << std::endl;
     }
 
     timeval preTime, midTime, postTime;
@@ -410,9 +407,8 @@ int main(int argc, char* argv[]) {
     std::cout<<std::endl;
 
     if (mode == "compress" || mode == "both") {
-        std::cout << "Time taken by CopyInputToRingBuffer: " << elapsedTimeCopyInputToRingBuffer << "s\n";
-        std::cout << "Time taken by WriteBrotliData: " << elapsedTimeWriteBrotliData << "s\n";
-        std::cout << "Time taken by Compression: " << elapsedTimeCompression << "s\n";
+        std::cout << "Time taken by Brotli for compression: " << elapsedTimeWriteBrotliData + elapsedTimeCopyInputToRingBuffer<< "s\n";
+        std::cout << "Time taken by Full Compression: " << elapsedTimeCompression << "s\n";
     }
 
     if (mode == "decompress" || mode == "both") {
@@ -453,5 +449,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    std::cout<<std::endl;
+    std::cout<<std::endl;
     return 0;
 }
