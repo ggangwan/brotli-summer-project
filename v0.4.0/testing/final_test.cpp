@@ -443,6 +443,8 @@ int main(int argc, char* argv[]) {
 
         if (original_size != -1 && compressed_size != -1) {
             double compression_ratio = static_cast<double>(original_size) / compressed_size;
+            std::cout << "Original File Size: " << original_size << std::endl;
+            std::cout << "Compressed File Size: " << compressed_size << std::endl;
             std::cout << "Compression Ratio: " << compression_ratio << std::endl;
         } else {
             std::cerr << "Error calculating file sizes.\n";
