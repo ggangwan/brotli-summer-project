@@ -81,7 +81,7 @@ void printMaxRSS() {
     std::cout << "Maximum resident set size: " << usage.ru_maxrss << " kilobytes\n";
 }
 
-bool CompressData(const std::string& input_filename, const std::string& output_filename, int quality=6, int lgwin=16) {
+bool CompressData(const std::string& input_filename, const std::string& output_filename, int quality=6, int lgwin=16, double* timetakenbyBECP = nullptr) {
     std::ifstream input_file(input_filename, std::ios::binary);
     if (!input_file) {
         std::cerr << "Failed to open input file: " << input_filename << std::endl;
@@ -106,8 +106,10 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
     uint8_t input_buffer[BUFFER_SIZE];
     uint8_t output_buffer[BUFFER_SIZE];
     memset(input_buffer, 0, BUFFER_SIZE);
-    memset(output_buffer,0, BUFFER_SIZE);
+    memset(output_buffer, 0, BUFFER_SIZE);
     bool is_eof = false;
+
+    double totalTimeBrotliEncoderComrpessStream = 0.0;
 
     while (!is_eof) {
         input_file.read(reinterpret_cast<char*>(input_buffer), BUFFER_SIZE);
@@ -122,6 +124,10 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
                 uint8_t* next_out = output_buffer;
                 size_t available_out = BUFFER_SIZE;
 
+                struct timeval startTime, endTime;
+
+                // Measure time taken by BrotliEncoderCompressStream
+                gettimeofday(&startTime, nullptr);
                 if (!BrotliEncoderCompressStream(encoder_state,
                     is_eof ? BROTLI_OPERATION_FINISH : BROTLI_OPERATION_PROCESS,
                     &available_in, &next_in, &available_out, &next_out, nullptr)) {
@@ -129,6 +135,8 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
                     BrotliEncoderDestroyInstance(encoder_state);
                     return false;
                 }
+                gettimeofday(&endTime, nullptr);
+                totalTimeBrotliEncoderComrpessStream += (endTime.tv_sec - startTime.tv_sec) + (endTime.tv_usec - startTime.tv_usec) / 1e6;
 
                 size_t output_size = BUFFER_SIZE - available_out;
                 output_file.write(reinterpret_cast<char*>(output_buffer), output_size);
@@ -137,6 +145,12 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
     }
 
     BrotliEncoderDestroyInstance(encoder_state);
+
+    // Update pointer with the total time taken
+    if (timetakenbyBECP) {
+        *timetakenbyBECP = totalTimeBrotliEncoderComrpessStream;
+    }
+
     return true;
 }
 
@@ -258,6 +272,7 @@ size_t GetFileSize(const std::string& filename) {
     int rc = stat(filename.c_str(), &stat_buf);
     return rc == 0 ? stat_buf.st_size : -1;
 }
+
 void PrintUsage() {
     std::cout << "Usage: program_name -f <file_path> -c <compression_quality> -w <window_bits> -m <mode>\n"
               << "  -f <file_path>              : Path to the input file\n"
@@ -326,29 +341,28 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Display the path where the operation starts
-    std::cout << "Operation starts in directory: " << dir_name << std::endl;
-
     // Print the filenames based on the mode
     if (mode == "compress") {
-        std::cout << "Input file: " << file_path << " -> Compressed file: " << compressed_file << std::endl;
+        std::cout << "Input file: " << file_path << "\n -> Compressed file: " << compressed_file << std::endl;
     } else if (mode == "decompress") {
-        std::cout << "Input file: " << compressed_file << " -> Decompressed file: " << decompressed_file << std::endl;
+        std::cout << "Input file: " << compressed_file << "\n -> Decompressed file: " << decompressed_file << std::endl;
     } else if (mode == "both") {
-        std::cout << "Input file: " << file_path << " -> Compressed file: " << compressed_file << " -> Decompressed file: " << decompressed_file << std::endl;
+        std::cout << "Input file: " << file_path << "\n -> Compressed file: " << compressed_file << "\n -> Decompressed file: " << decompressed_file << std::endl;
     }
 
     timeval preTime, midTime, postTime;
     CpuUsage preProcUsage, midProcUsage, postProcUsage;
     SystemCpuUsage preSysUsage, midSysUsage, postSysUsage;
-    double elapsedTimeCompression = 0.0, elapsedTimeDecompression = 0.0;
+    double elapsedTimeCompression = 0.0, 
+           elapsedTimeBrotliEncoderCompressStream = 0.0,
+           elapsedTimeDecompression = 0.0;
 
     if (mode == "compress" || mode == "both") {
         gettimeofday(&preTime, nullptr);
         preProcUsage = getCpuUsage();
         preSysUsage = getSystemCpuUsage();
 
-        if (CompressData(file_path, compressed_file, compression_quality, window_bits)) {
+        if (CompressData(file_path, compressed_file, compression_quality, window_bits, &elapsedTimeBrotliEncoderCompressStream)) {
             std::cout << "Compression successful\n";
         } else {
             std::cerr << "Compression failed\n";
@@ -390,16 +404,19 @@ int main(int argc, char* argv[]) {
     double elapsedTimeTotal = elapsedTimeCompression + elapsedTimeDecompression;
 
     if (mode == "compress" || mode == "both") {
-        std::cout << "Time taken by compression: " << elapsedTimeCompression << "s\n";
+        std::cout << "Time taken by Brotli for compression: " << elapsedTimeBrotliEncoderCompressStream << "s\n";
+        std::cout << "Time taken by Full Compression: " << elapsedTimeCompression << "s\n";
     }
 
     if (mode == "decompress" || mode == "both") {
-        std::cout << "Time taken by decompression: " << elapsedTimeDecompression << "s\n";
+        std::cout << "Time taken by Decompression: " << elapsedTimeDecompression << "s\n";
     }
 
     if (mode == "both") {
-        std::cout << "Total time taken: " << elapsedTimeTotal << "s\n";
+        std::cout << "Total time taken: " << elapsedTimeTotal << "s\n\n";
     }
+
+    std::cout<<std::endl;
 
     if (mode == "compress") {
         double sysCpuUsage = calculateOverallCpuUsage(preSysUsage, midSysUsage);
@@ -413,19 +430,25 @@ int main(int argc, char* argv[]) {
         std::cout << "Overall CPU usage: " << sysCpuUsage << "%\n";
     }
 
+    std::cout<<std::endl;
     printMaxRSS();
+    std::cout<<std::endl;
 
-    if (mode == "compress" || mode == "both") {
+     if (mode == "compress" || mode == "both") {
         size_t original_size = GetFileSize(file_path);
         size_t compressed_size = GetFileSize(compressed_file);
 
         if (original_size != -1 && compressed_size != -1) {
             double compression_ratio = static_cast<double>(original_size) / compressed_size;
+            std::cout << "Original File Size: " << original_size << std::endl;
+            std::cout << "Compressed File Size: " << compressed_size << std::endl;
             std::cout << "Compression Ratio: " << compression_ratio << std::endl;
         } else {
             std::cerr << "Error calculating file sizes.\n";
         }
     }
 
+    std::cout<<std::endl;
+    std::cout<<std::endl;
     return 0;
 }
