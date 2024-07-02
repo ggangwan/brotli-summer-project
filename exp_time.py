@@ -8,11 +8,11 @@ import matplotlib.pyplot as plt
 
 # Define the input file paths
 input_files = [
-    "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w16/_report_c6_w16.csv",
-    "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w16_v110/_report_c6_w16_v110.csv",
-    "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w18_v110/_report_c6_w18_v110.csv",
-    "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w20_v110/_report_c6_w20_v110.csv",
-    "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w22_v110/_report_c6_w22_v110.csv"
+    "/path/to/test_data_compressed_c6_w16/_report_c6_w16.csv",
+    "/path/to/test_data_compressed_c6_w16_v110/_report_c6_w16_v110.csv",
+    "/path/to/test_data_compressed_c6_w18_v110/_report_c6_w18_v110.csv",
+    "/path/to/test_data_compressed_c6_w20_v110/_report_c6_w20_v110.csv",
+    "/path/to/test_data_compressed_c6_w22_v110/_report_c6_w22_v110.csv"
 ]
 
 # Extract the window sizes from the file paths
@@ -83,11 +83,11 @@ LINE CHART
 
 # # Define the input file paths
 # input_files = [
-#     "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w16/_report_c6_w16.csv",
-#     "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w16_v110/_report_c6_w16_v110.csv",
-#     "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w18_v110/_report_c6_w18_v110.csv",
-#     "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w20_v110/_report_c6_w20_v110.csv",
-#     "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w22_v110/_report_c6_w22_v110.csv"
+#     "/path/to/test_data_compressed_c6_w16/_report_c6_w16.csv",
+#     "/path/to/test_data_compressed_c6_w16_v110/_report_c6_w16_v110.csv",
+#     "/path/to/test_data_compressed_c6_w18_v110/_report_c6_w18_v110.csv",
+#     "/path/to/test_data_compressed_c6_w20_v110/_report_c6_w20_v110.csv",
+#     "/path/to/test_data_compressed_c6_w22_v110/_report_c6_w22_v110.csv"
 # ]
 
 # # Extract the window sizes from the file paths

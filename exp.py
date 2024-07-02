@@ -2,8 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Define the input file paths
-input_file_1 = "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w16/_report_c6_w16.csv"
-input_file_2 = "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w24_v110/_report_c6_w24_v110.csv"
+input_file_1 = "/path/to/test_data_compressed_c6_w16/_report_c6_w16.csv"
+input_file_2 = "/path/to/test_data_compressed_c6_w24_v110/_report_c6_w24_v110.csv"
 
 # Extract the window sizes from the file paths
 window_size_1 = input_file_1.split('_w')[-1][:-4]

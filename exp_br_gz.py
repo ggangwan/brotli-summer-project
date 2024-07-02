@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Define the input directory paths
-input_dir_1 = "/Users/ggangwan/Documents/brotli-test/test_data_compressed_gzip/"
-input_dir_2 = "/Users/ggangwan/Documents/brotli-test/test_data_compressed_c6_w16/"
+input_dir_1 = "/path/to/test_data_compressed_gzip/"
+input_dir_2 = "/path/to/test_data_compressed_c6_w16/"
 
 # Extract window sizes from directory names
 window_size_1 = input_dir_1.split('compressed_')[-1][:-1]
