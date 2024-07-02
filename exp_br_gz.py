@@ -52,9 +52,16 @@ for p in ax.patches:
 ax.set_xticks([i for i in range(len(final_df))])
 ax.set_xticklabels(final_df['file_name'], rotation=45, ha='right')
 
+# Calculate percentiles
+percentiles = [10, 20, 50, 90, 99]
+percentile_values = final_df['percentage_change'].quantile([p/100 for p in percentiles])
+
 # Average percentage change
 average_percentage_change = final_df['percentage_change'].mean()
-plt.figtext(0.5, 0.02, f"Average Percentage Change: {average_percentage_change:.2f}%", ha="center", fontsize=12, color="black")
+percentile_info = ' | '.join([f"{p}th Percentile: {percentile_values[p/100]:.2f}%" for p in percentiles])
+
+# Display text
+plt.figtext(0.5, 0.9, f"Average Percentage Change: {average_percentage_change:.2f}%\n{percentile_info}", ha="center", fontsize=12, color="black")
 
 # Set legend
 legend_labels = [
