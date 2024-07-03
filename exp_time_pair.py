@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 input_file_1 = "/path/to/first_report.csv"
 input_file_2 = "/path/to/second_report.csv"
 
+# Extract window sizes from directory names
+window_size_1 = input_file_1.split('/')[-2][21:]
+window_size_2 = input_file_2.split('/')[-2][21:]
+
 # Read the CSV files
 df_first = pd.read_csv(input_file_1)
 df_second = pd.read_csv(input_file_2)
@@ -56,7 +60,12 @@ plt.figtext(0.5, 0.9, f"Average Percentage Change: {average_percentage_change:.2
 ax.set_ylabel("Time Taken By Brotli (ms)")
 
 # Set legend
-ax.legend()
+legend_labels = [
+    f'Compressed Using {window_size_1}',
+    f'Compressed Using {window_size_2}',
+    'Percentage Change'
+]
+ax.legend(legend_labels)
 
 # Adjust the plot to make room for the text
 plt.subplots_adjust(top=0.85, bottom=0.3)
