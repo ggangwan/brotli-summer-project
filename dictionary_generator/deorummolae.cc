@@ -3,7 +3,7 @@
 #include <array>
 #include <cstdio>
 
-#include <sais.hxx>
+#include <include/sais.hxx>
 
 #if defined(_MSC_VER)
 #include <intrin.h>  /* __popcnt64 */
