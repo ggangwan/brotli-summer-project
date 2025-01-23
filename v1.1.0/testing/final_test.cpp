@@ -2,6 +2,7 @@
 #include <fstream>
 #include <brotli/encode.h>
 #include <brotli/decode.h>
+#include <brotli/constants.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -81,7 +82,85 @@ void printMaxRSS() {
     std::cout << "Maximum resident set size: " << usage.ru_maxrss << " kilobytes\n";
 }
 
-bool CompressData(const std::string& input_filename, const std::string& output_filename, int quality=6, int lgwin=16, double* timetakenbyBECP = nullptr) {
+static int64_t FileSize(const char* path) {
+  FILE* f = fopen(path, "rb");
+  int64_t retval;
+  if (f == NULL) {
+    return -1;
+  }
+  if (fseek(f, 0L, SEEK_END) != 0) {
+    fclose(f);
+    return -1;
+  }
+  retval = ftell(f);
+  if (fclose(f) != 0) {
+    return -1;
+  }
+  return retval;
+}
+
+static const BrotliEncoderPreparedDictionary* ReadDictionary(const char* dictionary_path, bool compress) {
+  static const int kMaxDictionarySize =
+      BROTLI_MAX_DISTANCE - BROTLI_MAX_BACKWARD_LIMIT(24);
+  FILE* f;
+  int64_t file_size_64;
+  uint8_t* buffer;
+  size_t bytes_read;
+
+  f = fopen(dictionary_path, "rb");
+  if (f == NULL) {
+    fprintf(stderr, "failed to open dictionary file [%s]: %s\n",
+            dictionary_path, strerror(errno));
+    return nullptr;
+  }
+
+  file_size_64 = FileSize(dictionary_path);
+  if (file_size_64 == -1) {
+    fprintf(stderr, "could not get size of dictionary file [%s]",
+            dictionary_path);
+    fclose(f);
+    return nullptr;
+  }
+
+  if (file_size_64 > kMaxDictionarySize) {
+    fprintf(stderr, "dictionary [%s] is larger than maximum allowed: %d\n",
+            dictionary_path, kMaxDictionarySize);
+    fclose(f);
+    return nullptr;
+  }
+  size_t dictionary_size = (size_t)file_size_64;
+
+  buffer = (uint8_t*)malloc(dictionary_size);
+  if (!buffer) {
+    fprintf(stderr, "could not read dictionary: out of memory\n");
+    fclose(f);
+    return nullptr;
+  }
+  bytes_read = fread(buffer, sizeof(uint8_t), dictionary_size, f);
+  if (bytes_read != dictionary_size) {
+    free(buffer);
+    fprintf(stderr, "failed to read dictionary [%s]: %s\n",
+            dictionary_path, strerror(errno));
+    fclose(f);
+    return nullptr;
+  }
+  fclose(f);
+  uint8_t* dictionary = buffer;
+  const BrotliEncoderPreparedDictionary* prepared_dictionary;
+  if (compress) {
+    prepared_dictionary = BrotliEncoderPrepareDictionary(
+        BROTLI_SHARED_DICTIONARY_RAW, dictionary_size,
+        dictionary, BROTLI_MAX_QUALITY, NULL, NULL, NULL);
+    if (prepared_dictionary == NULL) {
+      fprintf(stderr, "failed to prepare dictionary [%s]\n",
+              dictionary_path);
+      return nullptr;
+    }
+  }
+  return prepared_dictionary;
+}
+
+bool CompressData(const std::string& input_filename, const std::string& output_filename, int quality=6, int lgwin=16, double* timetakenbyBECP = nullptr, const char* dictionary_path = nullptr) {
     std::ifstream input_file(input_filename, std::ios::binary);
     if (!input_file) {
         std::cerr << "Failed to open input file: " << input_filename << std::endl;
@@ -94,6 +173,17 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
         return false;
     }
 
+
+    //Call to ReadDictionary -> returns const BrotliEncoderPreparedDictionary* -> if NULL exit
+    const BrotliEncoderPreparedDictionary* prepared_dictionary = nullptr;
+    if(dictionary_path){
+        prepared_dictionary = ReadDictionary(dictionary_path, true);
+        if(!prepared_dictionary){
+            std::cerr << "Failed to prepare dictionary." << std::endl;
+            return false;
+        }
+    }
+
     BrotliEncoderState* encoder_state = BrotliEncoderCreateInstance(nullptr, nullptr, nullptr);
     if (!encoder_state) {
         std::cerr << "Failed to create Brotli encoder state." << std::endl;
@@ -102,6 +192,15 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
 
     BrotliEncoderSetParameter(encoder_state, BROTLI_PARAM_QUALITY, quality);
     BrotliEncoderSetParameter(encoder_state, BROTLI_PARAM_LGWIN, lgwin);
+
+
+    //Call to BrotliEncoderAttachPreparedDictionary -> returns BROTLI_BOOL -> if false exit
+    if(prepared_dictionary){
+        if(BrotliEncoderAttachPreparedDictionary(encoder_state, prepared_dictionary) == BROTLI_FALSE){
+            std::cerr << "Failed to attach dictionary." << std::endl;
+            return false;
+        }
+    }
 
     uint8_t input_buffer[BUFFER_SIZE];
     uint8_t output_buffer[BUFFER_SIZE];
@@ -154,7 +253,7 @@ bool CompressData(const std::string& input_filename, const std::string& output_f
     return true;
 }
 
-bool DecompressData(const std::string& input_file, const std::string& output_file) {
+bool DecompressData(const std::string& input_file, const std::string& output_file, const char* dictionary_path = nullptr) {
     std::ifstream in(input_file, std::ios::binary);
     if (!in.is_open()) {
         std::cerr << "Error opening input file\n";
