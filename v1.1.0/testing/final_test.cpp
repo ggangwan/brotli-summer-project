@@ -99,7 +99,7 @@ static int64_t FileSize(const char* path) {
   return retval;
 }
 
-static const BrotliEncoderPreparedDictionary* ReadDictionary(const char* dictionary_path, bool compress) {
+static const BrotliEncoderPreparedDictionary* ReadDictionary(const char* dictionary_path, bool compress, BrotliDecoderState* decoder = nullptr) {
   static const int kMaxDictionarySize =
       BROTLI_MAX_DISTANCE - BROTLI_MAX_BACKWARD_LIMIT(24);
   FILE* f;
@@ -146,17 +146,27 @@ static const BrotliEncoderPreparedDictionary* ReadDictionary(const char* diction
   }
   fclose(f);
   uint8_t* dictionary = buffer;
-  const BrotliEncoderPreparedDictionary* prepared_dictionary;
+  const BrotliEncoderPreparedDictionary* prepared_dictionary = nullptr;
   if (compress) {
     prepared_dictionary = BrotliEncoderPrepareDictionary(
         BROTLI_SHARED_DICTIONARY_RAW, dictionary_size,
         dictionary, BROTLI_MAX_QUALITY, NULL, NULL, NULL);
-    if (prepared_dictionary == NULL) {
+    if (!prepared_dictionary) {
       fprintf(stderr, "failed to prepare dictionary [%s]\n",
               dictionary_path);
       return nullptr;
     }
   }
+  else{
+    BROTLI_BOOL res = BrotliDecoderAttachDictionary(decoder,
+        BROTLI_SHARED_DICTIONARY_RAW, dictionary_size,
+        dictionary);
+    if(res==BROTLI_FALSE){
+        fprintf(stderr, "failed to attach dictionary to decoder [%s]\n",
+              dictionary_path);
+       return nullptr; 
+    }
+  } 
   return prepared_dictionary;
 }
 
@@ -278,6 +288,8 @@ bool DecompressData(const std::string& input_file, const std::string& output_fil
         std::cerr << "Error creating Brotli decoder state\n";
         return false;
     }
+
+    ReadDictionary(dictionary_path, false, state);
 
     size_t total_out = 0;
     size_t available_out;
