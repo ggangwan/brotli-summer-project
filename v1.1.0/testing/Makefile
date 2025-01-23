@@ -27,6 +27,7 @@ $(TARGET): $(SRCS)
 	@echo "  -c <compression_quality>    : Compression quality (1 to 11)"
 	@echo "  -w <window_bits>            : Number of window bits (10 to 24)"
 	@echo "  -m <mode>                   : Mode ('compress', 'decompress', 'both')"
+	@echo "  -d <dictionary_path>        : Path to the dictionary (optional)"
 
 # Clean up build files
 clean:

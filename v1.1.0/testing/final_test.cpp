@@ -385,21 +385,23 @@ size_t GetFileSize(const std::string& filename) {
 }
 
 void PrintUsage() {
-    std::cout << "Usage: program_name -f <file_path> -c <compression_quality> -w <window_bits> -m <mode>\n"
+    std::cout << "Usage: program_name -f <file_path> -c <compression_quality> -w <window_bits> -m <mode> [-d <dictionary_path>]\n"
               << "  -f <file_path>              : Path to the input file\n"
               << "  -c <compression_quality>    : Compression quality (1 to 11)\n"
               << "  -w <window_bits>            : Number of window bits (10 to 24)\n"
-              << "  -m <mode>                   : Mode ('compress', 'decompress', 'both')\n";
+              << "  -m <mode>                   : Mode ('compress', 'decompress', 'both')\n"
+              << "  -d <dictionary_path>        : Path to the dictionary (optional)\n";
 }
 
 int main(int argc, char* argv[]) {
     std::string file_path;
     int compression_quality = 6;
     int window_bits = 16;
+    std::string dictionary_path;
     std::string mode = "both";
 
     int opt;
-    while ((opt = getopt(argc, argv, "f:c:w:m:")) != -1) {
+    while ((opt = getopt(argc, argv, "f:c:w:m:d:")) != -1) {
         switch (opt) {
             case 'f':
                 file_path = optarg;
@@ -412,6 +414,9 @@ int main(int argc, char* argv[]) {
                 break;
             case 'm':
                 mode = optarg;
+                break;
+            case 'd':
+                dictionary_path = optarg;
                 break;
             default:
                 PrintUsage();
@@ -461,6 +466,8 @@ int main(int argc, char* argv[]) {
         std::cout << "Input file: " << file_path << "\n -> Compressed file: " << compressed_file << "\n -> Decompressed file: " << decompressed_file << std::endl;
     }
 
+    const char* dict_path_cstr = dictionary_path.empty() ? nullptr : dictionary_path.c_str();
+
     timeval preTime, midTime, postTime;
     CpuUsage preProcUsage, midProcUsage, postProcUsage;
     SystemCpuUsage preSysUsage, midSysUsage, postSysUsage;
@@ -473,7 +480,7 @@ int main(int argc, char* argv[]) {
         preProcUsage = getCpuUsage();
         preSysUsage = getSystemCpuUsage();
 
-        if (CompressData(file_path, compressed_file, compression_quality, window_bits, &elapsedTimeBrotliEncoderCompressStream)) {
+        if (CompressData(file_path, compressed_file, compression_quality, window_bits, &elapsedTimeBrotliEncoderCompressStream, dict_path_cstr)) {
             std::cout << "Compression successful\n";
         } else {
             std::cerr << "Compression failed\n";
@@ -494,7 +501,7 @@ int main(int argc, char* argv[]) {
             preSysUsage = getSystemCpuUsage();
         }
 
-        if (DecompressData(compressed_file, decompressed_file)) {
+        if (DecompressData(compressed_file, decompressed_file, dict_path_cstr)) {
             std::cout << "Decompression successful\n";
         } else {
             std::cerr << "Decompression failed\n";
