@@ -5,7 +5,7 @@ This repository contains scripts for Brotli compression and decompression for tw
 ## Directory Structure
 
 ```
-brotli-git-setup/
+brotli-summer-project/
 ├── v0.4.0/
 │   ├── dec/
 │   ├── enc/
