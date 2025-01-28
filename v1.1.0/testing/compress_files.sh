@@ -1,14 +1,16 @@
 #!/bin/bash
 
-# Default values for compression quality and window size
+# Default values for compression quality, window size, and dictionary
 compression_quality=6
 window_size=16
+dictionary_path=""
 
-# Parse command line arguments for compression quality and window size
-while getopts "c:w:" opt; do
+# Parse command line arguments
+while getopts "c:w:d:" opt; do
   case $opt in
     c) compression_quality=$OPTARG ;;
     w) window_size=$OPTARG ;;
+    d) dictionary_path=$OPTARG ;;
     \?) echo "Invalid option -$OPTARG" >&2; exit 1 ;;
   esac
 done
@@ -18,7 +20,7 @@ shift $((OPTIND -1))
 directory=$1
 
 if [ -z "$directory" ]; then
-  echo "Usage: $0 [-c compression_quality] [-w window_size] <directory>"
+  echo "Usage: $0 [-c compression_quality] [-w window_size] [-d dictionary_path] <directory>"
   exit 1
 fi
 
@@ -46,7 +48,12 @@ echo "Original File Name,File Size(B),Compression Level,Window Bits,Time Taken b
 for file in "$directory"/*; do
   if [ -f "$file" ]; then
     for i in {1..3}; do
-      output=$(./final_test -f "$file" -c "$compression_quality" -w "$window_size" -m compress)
+      # Prepare the custom dictionary argument
+      if [ -n "$dictionary_path" ]; then
+        output=$(./final_test -f "$file" -c "$compression_quality" -w "$window_size" -m compress -d "$dictionary_path")
+      else
+        output=$(./final_test -f "$file" -c "$compression_quality" -w "$window_size" -m compress)
+      fi
 
       original_file_name=$(basename "$file")
       file_size=$(echo "$output" | grep "Original File Size:" | cut -d ' ' -f 4)

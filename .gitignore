@@ -4,3 +4,8 @@ dict_gen
 input
 output
 .vscode
+dicts
+final_test
+compare_reports
+*.csv
+.DS_Store
