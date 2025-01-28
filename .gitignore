@@ -9,3 +9,4 @@ final_test
 compare_reports
 *.csv
 .DS_Store
+results
